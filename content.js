@@ -1,5 +1,8 @@
 (() => {
-  const STEP = 70; // pixels for j/k/h/l
+  const STEP = 70; // pixels for a tap of j/k/h/l
+  const HOLD_DELAY = 150; // ms a key is held before it scrolls continuously
+  const HOLD_SPEED = 1100; // pixels per second while held
+  const EASE = 0.07; // seconds; how quickly scrolling catches up (smaller is snappier)
   const PREFIX_TIMEOUT = 1000; // ms to finish a two-key command like gg or zL
   const HINT_CHARS = "sadfjklewcmpgh";
 
@@ -89,6 +92,7 @@
   function setMode(next) {
     mode = next;
     insertFromFocus = false;
+    releaseHold();
     clearPending();
     ui();
     badge.hidden = mode === "normal";
@@ -156,12 +160,70 @@
     return cachedScroller || doc;
   }
 
-  function scrollBy(dx, dy, smooth) {
+  // Scrolling glides: each command adds distance still to go, and every frame covers part of
+  // what's left, so it eases out. A held key keeps adding distance until it's released.
+  let motion = null; // { el, x, y, hold, raf, last }
+
+  function glide(dx, dy, holdKey) {
     const el = scroller(dy !== 0 ? "y" : "x");
-    el.scrollBy({ left: dx, top: dy, behavior: smooth ? "smooth" : "auto" });
+    if (!motion || motion.el !== el) {
+      stopGlide();
+      motion = { el, x: 0, y: 0, hold: null, last: performance.now(), raf: 0 };
+      motion.raf = requestAnimationFrame(glideFrame);
+    }
+    motion.x += dx;
+    motion.y += dy;
+    if (holdKey) {
+      const length = Math.hypot(dx, dy) || 1;
+      motion.hold = { key: holdKey, since: performance.now(), vx: dx / length, vy: dy / length };
+    }
+  }
+
+  function glideFrame(now) {
+    const m = motion;
+    if (!m) return;
+    const dt = Math.min((now - m.last) / 1000, 0.05);
+    m.last = now;
+    if (m.hold && now - m.hold.since > HOLD_DELAY) {
+      m.x += m.hold.vx * HOLD_SPEED * dt;
+      m.y += m.hold.vy * HOLD_SPEED * dt;
+    }
+    const share = 1 - Math.exp(-dt / EASE);
+    // Whole pixels only, at least one while any is left, so it doesn't stall short.
+    const step = (left) => {
+      const d = left * share;
+      return Math.abs(left) < 1 ? 0 : Math.sign(d) * Math.max(1, Math.floor(Math.abs(d)));
+    };
+    const sx = step(m.x);
+    const sy = step(m.y);
+    if (sx || sy) {
+      const before = [m.el.scrollLeft, m.el.scrollTop];
+      m.el.scrollBy({ left: sx, top: sy, behavior: "instant" });
+      // At the edge: drop what's left instead of pushing against it.
+      if (sx && m.el.scrollLeft === before[0]) m.x = 0;
+      else m.x -= sx;
+      if (sy && m.el.scrollTop === before[1]) m.y = 0;
+      else m.y -= sy;
+    }
+    if (!m.hold && Math.abs(m.x) < 1 && Math.abs(m.y) < 1) {
+      motion = null;
+      return;
+    }
+    m.raf = requestAnimationFrame(glideFrame);
+  }
+
+  function releaseHold(key) {
+    // Lowercased: Shift pressed during the hold turns the key's release into "J".
+    if (motion && motion.hold && (key === undefined || motion.hold.key === key.toLowerCase())) motion.hold = null;
+  }
+
+  function stopGlide() {
+    if (motion) cancelAnimationFrame(motion.raf);
+    motion = null;
   }
 
   function scrollTo(x, y) {
+    stopGlide();
     const el = scroller(y !== null ? "y" : "x");
     const opts = { behavior: "smooth" };
     if (x !== null) opts.left = x === Infinity ? el.scrollWidth : x;
@@ -299,12 +361,12 @@
   // ---------- Keys ----------
 
   const commands = {
-    j: () => scrollBy(0, STEP),
-    k: () => scrollBy(0, -STEP),
-    h: () => scrollBy(-STEP, 0),
-    l: () => scrollBy(STEP, 0),
-    d: () => scrollBy(0, viewportHeight(scroller("y")) / 2, true),
-    u: () => scrollBy(0, -viewportHeight(scroller("y")) / 2, true),
+    j: () => glide(0, STEP, "j"),
+    k: () => glide(0, -STEP, "k"),
+    h: () => glide(-STEP, 0, "h"),
+    l: () => glide(STEP, 0, "l"),
+    d: () => glide(0, viewportHeight(scroller("y")) / 2),
+    u: () => glide(0, -viewportHeight(scroller("y")) / 2),
     gg: () => scrollTo(null, 0),
     G: () => scrollTo(null, Infinity),
     zL: () => scrollTo(Infinity, null),
@@ -355,6 +417,11 @@
     if (e.ctrlKey || e.metaKey || e.altKey) return;
 
     const key = pending + e.key;
+    // Held keys scroll on their own; the key's repeats would only add jumps.
+    if (e.repeat && "jkhl".includes(key)) {
+      consume(e);
+      return;
+    }
     if (commands[key]) {
       consume(e);
       clearPending();
@@ -371,6 +438,8 @@
   }
 
   window.addEventListener("keydown", onKeyDown, true);
+  window.addEventListener("keyup", (e) => releaseHold(e.key), true);
+  window.addEventListener("blur", () => releaseHold());
 
   // Typing into a field counts as insert mode; leaving it drops back to normal.
   window.addEventListener(

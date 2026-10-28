@@ -6,8 +6,8 @@ A very small Vimium alternative for Chrome, mostly for scrolling.
 
 | Key   | Action                                  |
 | ----- | --------------------------------------- |
-| `j`   | Scroll down                             |
-| `k`   | Scroll up                               |
+| `j`   | Scroll down (hold to keep scrolling)    |
+| `k`   | Scroll up (hold to keep scrolling)      |
 | `h`   | Scroll left                             |
 | `l`   | Scroll right                            |
 | `d`   | Scroll half a page down                 |
