@@ -23,6 +23,14 @@ A very small Vimium alternative for Chrome, mostly for scrolling.
 Focusing a text field switches to insert mode automatically, and `Esc` leaves the field.
 Keys held with Ctrl, Alt or Cmd are always passed through to the page.
 
+## Popup
+
+Click the Vimlite toolbar button to:
+
+- Turn Vimlite off for the site you're on (by host name, such as `mail.example.com`).
+- Use `Cmd+Esc` instead of `Esc` to get back to normal mode, so plain `Esc` goes to
+  the page. `Esc` still cancels link hints.
+
 ## Install
 
 1. Open `chrome://extensions`.

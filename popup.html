@@ -1,0 +1,24 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <h1>Vimlite</h1>
+
+  <label class="row" id="site-row">
+    <input type="checkbox" id="site">
+    <span>On for <b id="host"></b></span>
+  </label>
+  <p class="note" id="no-site" hidden>Vimlite doesn’t run on this page.</p>
+
+  <label class="row">
+    <input type="checkbox" id="cmd-escape">
+    <span>Use <kbd>⌘</kbd><kbd>Esc</kbd> to get back to normal mode</span>
+  </label>
+  <p class="note">Plain <kbd>Esc</kbd> then goes to the page. <kbd>Esc</kbd> still cancels link hints.</p>
+
+  <script src="popup.js"></script>
+</body>
+</html>

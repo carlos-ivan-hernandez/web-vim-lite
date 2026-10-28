@@ -10,6 +10,37 @@
   let lastClicked = null;
   let cachedScroller = null;
 
+  // ---------- Settings (changed in the popup) ----------
+
+  let enabled = true; // false when this site is turned off
+  let cmdEscape = false; // only Cmd+Esc returns to normal mode; plain Esc goes to the page
+
+  const storage = globalThis.chrome && chrome.storage && chrome.storage.local;
+
+  function applySettings({ disabledHosts = [], cmdEscape: useCmd = false }) {
+    cmdEscape = useCmd;
+    const next = !disabledHosts.includes(location.hostname);
+    if (enabled && !next && mode !== "normal") {
+      if (mode === "hints") clearHints();
+      setMode("normal");
+    }
+    enabled = next;
+  }
+
+  if (storage) {
+    storage.get(["disabledHosts", "cmdEscape"], applySettings);
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area === "local") storage.get(["disabledHosts", "cmdEscape"], applySettings);
+    });
+  }
+
+  // The popup asks which site the tab is on.
+  if (globalThis.chrome && chrome.runtime && chrome.runtime.onMessage) {
+    chrome.runtime.onMessage.addListener((message, sender, reply) => {
+      if (message && message.type === "vimlite:host") reply({ host: location.hostname });
+    });
+  }
+
   // ---------- UI (lives in a shadow root so page CSS can't touch it) ----------
 
   let host = null;
@@ -289,7 +320,7 @@
   }
 
   function onKeyDown(e) {
-    if (e.isComposing) return;
+    if (!enabled || e.isComposing) return;
     // Holding Shift for G or zL sends its own keydown; don't let it cancel a prefix.
     if (["Shift", "Control", "Alt", "Meta", "CapsLock"].includes(e.key)) return;
 
@@ -308,7 +339,8 @@
 
     if (e.key === "Escape") {
       const active = deepActiveElement();
-      if (mode === "insert" || isEditable(active)) {
+      const toNormal = !cmdEscape || e.metaKey;
+      if (toNormal && (mode === "insert" || isEditable(active))) {
         consume(e);
         if (isEditable(active)) active.blur();
         setMode("normal");
@@ -344,7 +376,7 @@
   window.addEventListener(
     "focusin",
     (e) => {
-      if (mode !== "hints" && isEditable(e.composedPath()[0])) {
+      if (enabled && mode !== "hints" && isEditable(e.composedPath()[0])) {
         setMode("insert");
         insertFromFocus = true;
       }
