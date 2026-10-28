@@ -25,7 +25,7 @@ Keys held with Ctrl, Alt or Cmd are always passed through to the page.
 
 ## Popup
 
-Click the Vimlite toolbar button to:
+Click the Vimlite toolbar button to see the shortcuts, and to:
 
 - Turn Vimlite off for the site you're on (by host name, such as `mail.example.com`).
 - Use `Cmd+Esc` instead of `Esc` to get back to normal mode, so plain `Esc` goes to

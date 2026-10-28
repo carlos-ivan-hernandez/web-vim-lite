@@ -38,6 +38,28 @@ h1 {
   font-size: 11px;
   color: var(--muted);
 }
+details {
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--key-border);
+}
+summary {
+  font-weight: 600;
+  cursor: default;
+}
+table {
+  margin-top: 6px;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+td {
+  padding: 3px 0;
+  vertical-align: top;
+}
+td:first-child {
+  padding-right: 10px;
+  white-space: nowrap;
+}
 kbd {
   padding: 0 4px;
   font: 11px ui-monospace, Menlo, Consolas, monospace;
